@@ -136,7 +136,7 @@
 
         <!-- Header Design -->
         <div class="bg-white/50 px-8 py-8 text-center border-b border-gray-100">
-           <img src="Logo.png" alt="School Logo" class="h-24 mx-auto mb-4 object-contain">
+            <img src="Logo.png" alt="School Logo" class="h-24 mx-auto mb-4 object-contain">
             <h1 class="text-2xl font-bold text-gray-800 tracking-tight">Keberadaan Guru</h1>
             <p class="text-gray-500 text-sm mt-1">Sila sahkan kehadiran & lokasi anda</p>
         </div>
@@ -275,40 +275,26 @@
                 </div>
             </div>
 
-        </div>
-    </div>
+            const form = document.getElementById('attendanceForm');
+            const submitBtn = document.getElementById('submitBtn');
+            const statusMessage = document.getElementById('statusMessage');
+            const testModeToggle = document.getElementById('testModeToggle');
+            const locationText = document.getElementById('locationText');
+            const gpsIndicator = document.getElementById('gpsIndicator');
+            const gpsContainer = document.getElementById('gpsContainer');
+            const dateInput = document.getElementById('date');
+            const masaInput = document.getElementById('masa');
 
-    <script>
-        // --- CONFIGURATION ---
-        // GANTIKAN KOORDINAT SEKOLAH ANDA DI SINI
-        const SCHOOL_LAT = 1.53395;
-        const SCHOOL_LNG = 110.318267;
-        const ALLOWED_RADIUS_METERS = 50;
+            // Set default date/time
+            const now = new Date();
+            dateInput.valueAsDate = now;
+            masaInput.value = now.toTimeString().slice(0, 5);
 
-        // URL GOOGLE APPS SCRIPT
-        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwc7NnGEjXm5UlBEXhRCLFZPOonO0bmdFZxA6RtxPF91UpzYG2OHrbLLinpSa8pME7K/exec';
-        // ---------------------
+            let currentPosition = null;
+            let isTestMode = false;
+            let watchId = null;
 
-        const form = document.getElementById('attendanceForm');
-        const submitBtn = document.getElementById('submitBtn');
-        const statusMessage = document.getElementById('statusMessage');
-        const testModeToggle = document.getElementById('testModeToggle');
-        const locationText = document.getElementById('locationText');
-        const gpsIndicator = document.getElementById('gpsIndicator');
-        const gpsContainer = document.getElementById('gpsContainer');
-        const dateInput = document.getElementById('date');
-        const masaInput = document.getElementById('masa');
-
-        // Set default date/time
-        const now = new Date();
-        dateInput.valueAsDate = now;
-        masaInput.value = now.toTimeString().slice(0, 5);
-
-        let currentPosition = null;
-        let isTestMode = false;
-        let watchId = null;
-
-        function calculateDistance(lat1, lon1, lat2, lon2) {
+            function calculateDistance(lat1, lon1, lat2, lon2) {
             const R = 6371e3;
             const φ1 = lat1 * Math.PI / 180;
             const φ2 = lat2 * Math.PI / 180;
@@ -316,120 +302,114 @@
             const Δλ = (lon2 - lon1) * Math.PI / 180;
 
             const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-                Math.cos(φ1) * Math.cos(φ2) *
-                Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+            Math.cos(φ1) * Math.cos(φ2) *
+            Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
             const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
             return R * c;
-        }
+            }
 
-        function retryLocation() {
+            function retryLocation() {
             if (watchId !== null) navigator.geolocation.clearWatch(watchId);
             updateLocation();
-        }
+            }
 
-        function updateGPSUI(status, message, distance = null) {
+            function updateGPSUI(status, message, distance = null) {
             locationText.textContent = message;
             gpsIndicator.className = 'pulse-dot ml-2'; // reset
-            gpsContainer.className = 'flex items-center justify-between rounded-xl p-3 border transition-colors duration-300'; // reset
+            gpsContainer.className = 'flex items-center justify-between rounded-xl p-3 border transition-colors
+            duration-300'; // reset
 
             if (status === 'searching') {
-                gpsIndicator.classList.add('orange');
-                gpsContainer.classList.add('bg-orange-50', 'border-orange-100');
-                locationText.className = "text-xs font-medium text-orange-600";
+            gpsIndicator.classList.add('orange');
+            gpsContainer.classList.add('bg-orange-50', 'border-orange-100');
+            locationText.className = "text-xs font-medium text-orange-600";
             } else if (status === 'success') {
-                gpsIndicator.classList.add('bg-green-500'); // solid green no pulse if stable, but keeping pulse for effect
-                gpsContainer.classList.add('bg-green-50', 'border-green-100');
-                locationText.className = "text-xs font-bold text-green-700";
+            gpsIndicator.classList.add('bg-green-500'); // solid green no pulse if stable, but keeping pulse for effect
+            gpsContainer.classList.add('bg-green-50', 'border-green-100');
+            locationText.className = "text-xs font-bold text-green-700";
             } else if (status === 'error') {
-                gpsIndicator.classList.add('red');
-                gpsContainer.classList.add('bg-red-50', 'border-red-100');
-                locationText.className = "text-xs font-medium text-red-600";
+            gpsIndicator.classList.add('red');
+            gpsContainer.classList.add('bg-red-50', 'border-red-100');
+            locationText.className = "text-xs font-medium text-red-600";
             }
-        }
+            }
 
-        function updateLocation() {
+            function updateLocation() {
             if (!navigator.geolocation) {
-                updateGPSUI('error', 'Geolokasi tidak disokong');
-                return;
+            updateGPSUI('error', 'Geolokasi tidak disokong');
+            return;
             }
 
             updateGPSUI('searching', 'Mencari isyarat GPS...');
 
             const options = {
-                enableHighAccuracy: true,
-                timeout: 20000,
-                maximumAge: 0
+            enableHighAccuracy: true,
+            timeout: 20000,
+            maximumAge: 0
             };
 
             const successCallback = (position) => {
-                currentPosition = position.coords;
-                const dist = calculateDistance(
-                    currentPosition.latitude,
-                    currentPosition.longitude,
-                    SCHOOL_LAT,
-                    SCHOOL_LNG
-                );
+            currentPosition = position.coords;
+            const dist = calculateDistance(
+            currentPosition.latitude,
+            currentPosition.longitude,
+            SCHOOL_LAT,
+            SCHOOL_LNG
+            );
 
-                if (isTestMode) {
-                    updateGPSUI('success', `Mod Demo: Stabil (${Math.round(dist)}m)`);
-                } else {
-                    if (dist <= ALLOWED_RADIUS_METERS) {
-                        updateGPSUI('success', `Dalam Kawasan (${dist.toFixed(1)}m)`);
-                    } else {
-                        updateGPSUI('error', `Luar Kawasan (${dist.toFixed(1)}m)`);
-                    }
-                }
-            };
-
-            const errorCallback = (error) => {
+            if (isTestMode) {
+            updateGPSUI('success', `Mod Demo: Stabil (${Math.round(dist)}m)`);
+            } else {
+            if (dist <= ALLOWED_RADIUS_METERS) { updateGPSUI('success', `Dalam Kawasan (${dist.toFixed(1)}m)`); } else {
+                updateGPSUI('error', `Luar Kawasan (${dist.toFixed(1)}m)`); } } }; const errorCallback=(error)=> {
                 console.warn("Ralat GPS:", error.message);
                 let msg = "Ralat GPS";
                 if (error.code === error.PERMISSION_DENIED) msg = "Akses lokasi ditolak";
                 else if (error.code === error.TIMEOUT) msg = "Isyarat lemah (Timeout)";
 
                 updateGPSUI('error', msg);
-            };
+                };
 
-            watchId = navigator.geolocation.watchPosition(successCallback, errorCallback, options);
-        }
+                watchId = navigator.geolocation.watchPosition(successCallback, errorCallback, options);
+                }
 
-        testModeToggle.addEventListener('change', (e) => {
-            isTestMode = e.target.checked;
-            retryLocation(); // Refresh UI immediately
-        });
+                testModeToggle.addEventListener('change', (e) => {
+                isTestMode = e.target.checked;
+                retryLocation(); // Refresh UI immediately
+                });
 
-        // Initialize GPS
-        updateLocation();
+                // Initialize GPS
+                updateLocation();
 
-        form.addEventListener('submit', (e) => {
-            e.preventDefault();
+                form.addEventListener('submit', (e) => {
+                e.preventDefault();
 
-            let distance = -1;
+                let distance = -1;
 
-            if (!isTestMode) {
+                if (!isTestMode) {
                 if (!currentPosition) {
-                    showStatus("Sila tunggu isyarat GPS sebelum menghantar.", "error");
-                    return;
+                showStatus("Sila tunggu isyarat GPS sebelum menghantar.", "error");
+                return;
                 }
 
                 distance = calculateDistance(
-                    currentPosition.latitude,
-                    currentPosition.longitude,
-                    SCHOOL_LAT,
-                    SCHOOL_LNG
+                currentPosition.latitude,
+                currentPosition.longitude,
+                SCHOOL_LAT,
+                SCHOOL_LNG
                 );
 
                 if (distance > ALLOWED_RADIUS_METERS) {
-                    showStatus(`Gagal: Anda berada ${distance.toFixed(1)}m dari sekolah.`, "error");
-                    return;
+                showStatus(`Gagal: Anda berada ${distance.toFixed(1)}m dari sekolah.`, "error");
+                return;
                 }
-            } else {
+                } else {
                 distance = 0.00; // Test mode assumes 0 distance
-            }
+                }
 
-            const formData = new FormData(form);
-            const data = {
+                const formData = new FormData(form);
+                const data = {
                 date: formData.get('date'),
                 masa: formData.get('masa'),
                 namaGuru: formData.get('namaGuru'),
@@ -439,56 +419,58 @@
                 distance: isTestMode ? "DEMO_MODE" : distance.toFixed(2),
                 latitude: currentPosition ? currentPosition.latitude : 0,
                 longitude: currentPosition ? currentPosition.longitude : 0
-            };
+                };
 
-            const originalBtnText = submitBtn.innerHTML;
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<div class="spinner"></div>';
-            showStatus("", "hidden"); // Clear previous status
+                const originalBtnText = submitBtn.innerHTML;
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<div class="spinner"></div>';
+                showStatus("", "hidden"); // Clear previous status
 
-            fetch(GOOGLE_SCRIPT_URL, {
+                fetch(GOOGLE_SCRIPT_URL, {
                 method: 'POST',
                 mode: 'no-cors',
                 headers: {
-                    'Content-Type': 'application/json'
+                'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(data)
-            })
+                })
                 .then(() => {
-                    showStatus("Kehadiran Berjaya Direkodkan!", "success");
-                    form.reset();
-                    // Reset Date/Time
-                    const resetNow = new Date();
-                    dateInput.valueAsDate = resetNow;
-                    masaInput.value = resetNow.toTimeString().slice(0, 5);
+                showStatus("Kehadiran Berjaya Direkodkan!", "success");
+                form.reset();
+                // Reset Date/Time
+                const resetNow = new Date();
+                dateInput.valueAsDate = resetNow;
+                masaInput.value = resetNow.toTimeString().slice(0, 5);
                 })
                 .catch(error => {
-                    showStatus("Ralat sambungan. Sila cuba lagi.", "error");
+                showStatus("Ralat sambungan. Sila cuba lagi.", "error");
                 })
                 .finally(() => {
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = '<span class="tracking-wide">SAHKAN KEBERADAAN</span><i class="fas fa-check text-sm ml-2"></i>';
-                    setTimeout(() => {
-                        submitBtn.innerHTML = originalBtnText;
-                    }, 3000);
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<span class="tracking-wide">SAHKAN KEBERADAAN</span><i
+                    class="fas fa-check text-sm ml-2"></i>';
+                setTimeout(() => {
+                submitBtn.innerHTML = originalBtnText;
+                }, 3000);
                 });
-        });
+                });
 
-        function showStatus(message, type) {
-            statusMessage.textContent = message;
-            statusMessage.className = "rounded-xl p-4 text-sm font-medium transform transition-all duration-300 border-l-4 shadow-sm mb-6";
+                function showStatus(message, type) {
+                statusMessage.textContent = message;
+                statusMessage.className = "rounded-xl p-4 text-sm font-medium transform transition-all duration-300
+                border-l-4 shadow-sm mb-6";
 
-            if (type === 'error') {
+                if (type === 'error') {
                 statusMessage.classList.add('bg-red-50', 'text-red-700', 'border-red-500', 'block', 'animate-pulse');
                 statusMessage.classList.remove('hidden');
-            } else if (type === 'success') {
+                } else if (type === 'success') {
                 statusMessage.classList.add('bg-green-50', 'text-green-700', 'border-green-500', 'block');
                 statusMessage.classList.remove('hidden');
-            } else {
+                } else {
                 statusMessage.classList.add('hidden');
-            }
-        }
-    </script>
+                }
+                }
+                </script>
 </body>
 
 </html>
