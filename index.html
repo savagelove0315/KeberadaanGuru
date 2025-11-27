@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="ms">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sistem Keberadaan Guru</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+            background-size: 400% 400%;
+            animation: gradient 15s ease infinite;
+            /* Prevent pull-to-refresh on mobile */
+            overscroll-behavior-y: none;
+        }
+
+        @keyframes gradient {
+            0% {
+                background-position: 0% 50%;
+            }
+
+            50% {
+                background-position: 100% 50%;
+            }
+
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+
+        /* Glassmorphism Card */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+        }
+
+        /* Input Styles */
+        .input-group:focus-within i {
+            color: #2563eb;
+            /* blue-600 */
+            transform: scale(1.1);
+        }
+
+        .input-group i {
+            transition: all 0.3s ease;
+        }
+
+        /* Button Animation */
+        .btn-animate {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .btn-animate:active {
+            transform: scale(0.95);
+        }
+
+        /* Custom Spinner */
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 0.8s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Pulse Animation for GPS Status */
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            background-color: #22c55e;
+            border-radius: 50%;
+            position: relative;
+        }
+
+        .pulse-dot::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border-radius: 50%;
+            background-color: #22c55e;
+            z-index: -1;
+            animation: pulse-ring 1.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+        }
+
+        .pulse-dot.red {
+            background-color: #ef4444;
+        }
+
+        .pulse-dot.red::after {
+            background-color: #ef4444;
+        }
+
+        .pulse-dot.orange {
+            background-color: #f59e0b;
+        }
+
+        .pulse-dot.orange::after {
+            background-color: #f59e0b;
+        }
+
+        @keyframes pulse-ring {
+            0% {
+                transform: scale(0.8);
+                opacity: 0.8;
+            }
+
+            100% {
+                transform: scale(2.4);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <div class="glass-card w-full max-w-md rounded-3xl overflow-hidden relative shadow-2xl transition-all duration-300">
+
+        <!-- Header Design -->
+        <div class="bg-white/50 px-8 py-8 text-center border-b border-gray-100">
+            <img src="Logo.png" alt="School Logo" class="h-24 mx-auto mb-4 object-contain">
+            <h1 class="text-2xl font-bold text-gray-800 tracking-tight">Keberadaan Guru</h1>
+            <p class="text-gray-500 text-sm mt-1">Sila sahkan kehadiran & lokasi anda</p>
+        </div>
+
+        <div class="px-8 py-6 space-y-6">
+
+            <!-- GPS Status Bar -->
+            <div id="gpsContainer"
+                class="flex items-center justify-between bg-gray-50 rounded-xl p-3 border border-gray-100 transition-colors duration-300">
+                <div class="flex items-center gap-3">
+                    <div id="gpsIndicator" class="pulse-dot orange ml-2"></div>
+                    <div class="flex flex-col">
+                        <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Status GPS</span>
+                        <span id="locationText" class="text-xs font-medium text-gray-600">Mencari isyarat...</span>
+                    </div>
+                </div>
+                <button onclick="retryLocation()" class="text-gray-400 hover:text-blue-600 transition-colors p-2">
+                    <i class="fas fa-sync-alt text-sm"></i>
+                </button>
+            </div>
+
+            <!-- Status Message (Hidden by default) -->
+            <div id="statusMessage"
+                class="hidden rounded-xl p-4 text-sm font-medium transform transition-all duration-300 border-l-4 shadow-sm">
+            </div>
+
+            <form id="attendanceForm" class="space-y-5">
+
+                <div class="grid grid-cols-2 gap-4">
+                    <!-- Date -->
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-semibold text-gray-500 uppercase ml-1">Tarikh</label>
+                        <div class="input-group relative">
+                            <input type="date" id="date" name="date" required
+                                class="w-full bg-gray-50 text-gray-700 text-sm border border-gray-200 rounded-xl px-3 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium">
+                        </div>
+                    </div>
+                    <!-- Time -->
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-semibold text-gray-500 uppercase ml-1">Masa</label>
+                        <div class="input-group relative">
+                            <input type="time" id="masa" name="masa" required
+                                class="w-full bg-gray-50 text-gray-700 text-sm border border-gray-200 rounded-xl px-3 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Nama Guru -->
+                <div class="space-y-1.5 input-group">
+                    <label class="text-xs font-semibold text-gray-500 uppercase ml-1">Nama Guru</label>
+                    <div class="relative group">
+                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                            <i class="fas fa-user text-gray-400 group-hover:text-blue-400 text-sm"></i>
+                        </div>
+                        <input type="text" id="namaGuru" name="namaGuru" placeholder="Nama Penuh Anda" required
+                            class="w-full bg-gray-50 text-gray-800 text-sm border border-gray-200 rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder-gray-400 font-medium">
+                    </div>
+                </div>
+
+                <!-- Kelas -->
+                <div class="space-y-1.5 input-group">
+                    <label class="text-xs font-semibold text-gray-500 uppercase ml-1">Kelas</label>
+                    <div class="relative group">
+                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                            <i class="fas fa-chalkboard text-gray-400 group-hover:text-blue-400 text-sm"></i>
+                        </div>
+                        <input type="text" id="kelas" name="kelas" placeholder="Cth: 5 Cerdik" required
+                            class="w-full bg-gray-50 text-gray-800 text-sm border border-gray-200 rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder-gray-400 font-medium">
+                    </div>
+                </div>
+
+                <!-- Mata Pelajaran -->
+                <div class="space-y-1.5 input-group">
+                    <label class="text-xs font-semibold text-gray-500 uppercase ml-1">Mata Pelajaran</label>
+                    <div class="relative group">
+                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                            <i class="fas fa-book text-gray-400 group-hover:text-blue-400 text-sm"></i>
+                        </div>
+                        <select id="mataPelajaran" name="mataPelajaran" required
+                            class="w-full bg-gray-50 text-gray-800 text-sm border border-gray-200 rounded-xl pl-10 pr-10 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all appearance-none cursor-pointer font-medium">
+                            <option value="" disabled selected>Sila Pilih Subjek</option>
+                            <option value="Bahasa Cina">Bahasa Cina</option>
+                            <option value="Bahasa Melayu">Bahasa Melayu</option>
+                            <option value="English">English</option>
+                            <option value="Matematik">Matematik</option>
+                            <option value="Sains">Sains</option>
+                            <option value="Sejarah">Sejarah</option>
+                            <option value="Pendidikan Seni Visual">Pendidikan Seni Visual</option>
+                            <option value="Pendidikan Muzik">Pendidikan Muzik</option>
+                            <option value="RBT">RBT</option>
+                            <option value="Pendidikan Jasmani">Pendidikan Jasmani</option>
+                            <option value="Pendidikan Kesihatan">Pendidikan Kesihatan</option>
+                        </select>
+                        <div
+                            class="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-gray-400">
+                            <i class="fas fa-chevron-down text-xs"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Catatan -->
+                <div class="space-y-1.5 input-group">
+                    <label class="text-xs font-semibold text-gray-500 uppercase ml-1">Catatan</label>
+                    <div class="relative group">
+                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                            <i class="fas fa-sticky-note text-gray-400 group-hover:text-blue-400 text-sm"></i>
+                        </div>
+                        <input type="text" id="catatan" name="catatan" placeholder="Catatan ringkas..."
+                            class="w-full bg-gray-50 text-gray-800 text-sm border border-gray-200 rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder-gray-400 font-medium">
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" id="submitBtn"
+                    class="btn-animate w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-4 px-4 rounded-xl shadow-lg shadow-blue-500/30 flex justify-center items-center gap-2 mt-4">
+                    <span class="tracking-wide">SAHKAN KEBERADAAN</span>
+                    <i class="fas fa-paper-plane text-sm"></i>
+                </button>
+            </form>
+
+            <!-- Footer / Test Mode -->
+            <div
+                class="pt-6 border-t border-gray-100 flex items-center justify-between opacity-80 hover:opacity-100 transition-opacity">
+                <span class="text-[10px] text-gray-400 uppercase font-bold tracking-widest">Sistem v1.2</span>
+
+                <div class="flex items-center gap-2 group cursor-pointer">
+                    <span
+                        class="text-[10px] text-gray-400 group-hover:text-gray-600 font-medium uppercase transition-colors">Mod
+                        Demo</span>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="testModeToggle" class="sr-only peer">
+                        <div
+                            class="w-8 h-4 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-indigo-500">
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // --- CONFIGURATION ---
+        // GANTIKAN KOORDINAT SEKOLAH ANDA DI SINI
+        const SCHOOL_LAT = 1.53395;
+        const SCHOOL_LNG = 110.318267;
+        const ALLOWED_RADIUS_METERS = 50;
+
+        // URL GOOGLE APPS SCRIPT
+        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwc7NnGEjXm5UlBEXhRCLFZPOonO0bmdFZxA6RtxPF91UpzYG2OHrbLLinpSa8pME7K/exec';
+        // ---------------------
+
+        const form = document.getElementById('attendanceForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const statusMessage = document.getElementById('statusMessage');
+        const testModeToggle = document.getElementById('testModeToggle');
+        const locationText = document.getElementById('locationText');
+        const gpsIndicator = document.getElementById('gpsIndicator');
+        const gpsContainer = document.getElementById('gpsContainer');
+        const dateInput = document.getElementById('date');
+        const masaInput = document.getElementById('masa');
+
+        // Set default date/time
+        const now = new Date();
+        dateInput.valueAsDate = now;
+        masaInput.value = now.toTimeString().slice(0, 5);
+
+        let currentPosition = null;
+        let isTestMode = false;
+        let watchId = null;
+
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371e3;
+            const φ1 = lat1 * Math.PI / 180;
+            const φ2 = lat2 * Math.PI / 180;
+            const Δφ = (lat2 - lat1) * Math.PI / 180;
+            const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+            const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+                Math.cos(φ1) * Math.cos(φ2) *
+                Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+            return R * c;
+        }
+
+        function retryLocation() {
+            if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+            updateLocation();
+        }
+
+        function updateGPSUI(status, message, distance = null) {
+            locationText.textContent = message;
+            gpsIndicator.className = 'pulse-dot ml-2'; // reset
+            gpsContainer.className = 'flex items-center justify-between rounded-xl p-3 border transition-colors duration-300'; // reset
+
+            if (status === 'searching') {
+                gpsIndicator.classList.add('orange');
+                gpsContainer.classList.add('bg-orange-50', 'border-orange-100');
+                locationText.className = "text-xs font-medium text-orange-600";
+            } else if (status === 'success') {
+                gpsIndicator.classList.add('bg-green-500'); // solid green no pulse if stable, but keeping pulse for effect
+                gpsContainer.classList.add('bg-green-50', 'border-green-100');
+                locationText.className = "text-xs font-bold text-green-700";
+            } else if (status === 'error') {
+                gpsIndicator.classList.add('red');
+                gpsContainer.classList.add('bg-red-50', 'border-red-100');
+                locationText.className = "text-xs font-medium text-red-600";
+            }
+        }
+
+        function updateLocation() {
+            if (!navigator.geolocation) {
+                updateGPSUI('error', 'Geolokasi tidak disokong');
+                return;
+            }
+
+            updateGPSUI('searching', 'Mencari isyarat GPS...');
+
+            const options = {
+                enableHighAccuracy: true,
+                timeout: 20000,
+                maximumAge: 0
+            };
+
+            const successCallback = (position) => {
+                currentPosition = position.coords;
+                const dist = calculateDistance(
+                    currentPosition.latitude,
+                    currentPosition.longitude,
+                    SCHOOL_LAT,
+                    SCHOOL_LNG
+                );
+
+                if (isTestMode) {
+                    updateGPSUI('success', `Mod Demo: Stabil (${Math.round(dist)}m)`);
+                } else {
+                    if (dist <= ALLOWED_RADIUS_METERS) {
+                        updateGPSUI('success', `Dalam Kawasan (${dist.toFixed(1)}m)`);
+                    } else {
+                        updateGPSUI('error', `Luar Kawasan (${dist.toFixed(1)}m)`);
+                    }
+                }
+            };
+
+            const errorCallback = (error) => {
+                console.warn("Ralat GPS:", error.message);
+                let msg = "Ralat GPS";
+                if (error.code === error.PERMISSION_DENIED) msg = "Akses lokasi ditolak";
+                else if (error.code === error.TIMEOUT) msg = "Isyarat lemah (Timeout)";
+
+                updateGPSUI('error', msg);
+            };
+
+            watchId = navigator.geolocation.watchPosition(successCallback, errorCallback, options);
+        }
+
+        testModeToggle.addEventListener('change', (e) => {
+            isTestMode = e.target.checked;
+            retryLocation(); // Refresh UI immediately
+        });
+
+        // Initialize GPS
+        updateLocation();
+
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+
+            let distance = -1;
+
+            if (!isTestMode) {
+                if (!currentPosition) {
+                    showStatus("Sila tunggu isyarat GPS sebelum menghantar.", "error");
+                    return;
+                }
+
+                distance = calculateDistance(
+                    currentPosition.latitude,
+                    currentPosition.longitude,
+                    SCHOOL_LAT,
+                    SCHOOL_LNG
+                );
+
+                if (distance > ALLOWED_RADIUS_METERS) {
+                    showStatus(`Gagal: Anda berada ${distance.toFixed(1)}m dari sekolah.`, "error");
+                    return;
+                }
+            } else {
+                distance = 0.00; // Test mode assumes 0 distance
+            }
+
+            const formData = new FormData(form);
+            const data = {
+                date: formData.get('date'),
+                masa: formData.get('masa'),
+                namaGuru: formData.get('namaGuru'),
+                kelas: formData.get('kelas'),
+                mataPelajaran: formData.get('mataPelajaran'),
+                catatan: formData.get('catatan') || '',
+                distance: isTestMode ? "DEMO_MODE" : distance.toFixed(2),
+                latitude: currentPosition ? currentPosition.latitude : 0,
+                longitude: currentPosition ? currentPosition.longitude : 0
+            };
+
+            const originalBtnText = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<div class="spinner"></div>';
+            showStatus("", "hidden"); // Clear previous status
+
+            fetch(GOOGLE_SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+                .then(() => {
+                    showStatus("Kehadiran Berjaya Direkodkan!", "success");
+                    form.reset();
+                    // Reset Date/Time
+                    const resetNow = new Date();
+                    dateInput.valueAsDate = resetNow;
+                    masaInput.value = resetNow.toTimeString().slice(0, 5);
+                })
+                .catch(error => {
+                    showStatus("Ralat sambungan. Sila cuba lagi.", "error");
+                })
+                .finally(() => {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<span class="tracking-wide">SAHKAN KEBERADAAN</span><i class="fas fa-check text-sm ml-2"></i>';
+                    setTimeout(() => {
+                        submitBtn.innerHTML = originalBtnText;
+                    }, 3000);
+                });
+        });
+
+        function showStatus(message, type) {
+            statusMessage.textContent = message;
+            statusMessage.className = "rounded-xl p-4 text-sm font-medium transform transition-all duration-300 border-l-4 shadow-sm mb-6";
+
+            if (type === 'error') {
+                statusMessage.classList.add('bg-red-50', 'text-red-700', 'border-red-500', 'block', 'animate-pulse');
+                statusMessage.classList.remove('hidden');
+            } else if (type === 'success') {
+                statusMessage.classList.add('bg-green-50', 'text-green-700', 'border-green-500', 'block');
+                statusMessage.classList.remove('hidden');
+            } else {
+                statusMessage.classList.add('hidden');
+            }
+        }
+    </script>
+</body>
+
+</html>
