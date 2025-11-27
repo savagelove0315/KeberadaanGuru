@@ -453,201 +453,68 @@
         dateInput.valueAsDate = now;
         // masaInput.value = now.toTimeString().slice(0, 5); // Removed
 
-        let currentPosition = null;
-        let isTestMode = false;
-        let watchId = null;
-
-        function calculateDistance(lat1, lon1, lat2, lon2) {
-            const R = 6371e3;
-            const φ1 = lat1 * Math.PI / 180;
-            const φ2 = lat2 * Math.PI / 180;
-            const Δφ = (lat2 - lat1) * Math.PI / 180;
-            const Δλ = (lon2 - lon1) * Math.PI / 180;
-
-            const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-                Math.cos(φ1) * Math.cos(φ2) *
-                Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-            return R * c;
-        }
-
-        function retryLocation() {
-            if (watchId !== null) navigator.geolocation.clearWatch(watchId);
-            updateLocation();
-        }
-
-        function updateGPSUI(status, message, distance = null) {
-            locationText.textContent = message;
-            gpsIndicator.className = 'pulse-dot ml-2'; // reset
-            gpsContainer.className = 'flex items-center justify-between rounded-xl p-3 border transition-colors duration-300'; // reset
-
-            if (status === 'searching') {
-                gpsIndicator.classList.add('orange');
-                gpsContainer.classList.add('bg-orange-50', 'border-orange-100');
-                locationText.className = "text-xs font-medium text-orange-600";
-            } else if (status === 'success') {
-                gpsIndicator.classList.add('bg-green-500'); // solid green no pulse if stable, but keeping pulse for effect
-                gpsContainer.classList.add('bg-green-50', 'border-green-100');
-                locationText.className = "text-xs font-bold text-green-700";
-            } else if (status === 'error') {
-                gpsIndicator.classList.add('red');
-                gpsContainer.classList.add('bg-red-50', 'border-red-100');
-                locationText.className = "text-xs font-medium text-red-600";
-            }
-        }
-
-        function updateLocation() {
-            if (!navigator.geolocation) {
-                updateGPSUI('error', 'Geolokasi tidak disokong');
-                return;
-            }
-
-            updateGPSUI('searching', 'Mencari isyarat GPS...');
-
-            const options = {
-                enableHighAccuracy: true,
-                timeout: 30000,
-                maximumAge: 5000
-            };
-
-            const successCallback = (position) => {
-                currentPosition = position.coords;
-
-                // Use temp location if set (Calibration)
-                const targetLat = window.tempSchoolLat || SCHOOL_LAT;
-                const targetLng = window.tempSchoolLng || SCHOOL_LNG;
-
-                const dist = calculateDistance(
-                    currentPosition.latitude,
-                    currentPosition.longitude,
-                    targetLat,
-                    targetLng
-                );
-
-                // Update debug text if needed
-                const coordText = `[${currentPosition.latitude.toFixed(5)}, ${currentPosition.longitude.toFixed(5)}]`;
-
-                if (isTestMode) {
-                    updateGPSUI('success', `Mod Demo: Stabil (${Math.round(dist)}m)`);
-                } else {
-                    if (dist <= ALLOWED_RADIUS_METERS) {
-                        updateGPSUI('success', `Dalam Kawasan (${dist.toFixed(1)}m)`);
-                    } else {
-                        updateGPSUI('error', `Luar Kawasan (${dist.toFixed(1)}m) ${coordText}`);
-                    }
-                }
-            };
-
-            const errorCallback = (error) => {
-                console.warn("Ralat GPS:", error.message);
-                let msg = "Ralat GPS";
-                if (error.code === error.PERMISSION_DENIED) msg = "Akses lokasi ditolak";
-                else if (error.code === error.TIMEOUT) msg = "Isyarat lemah (Timeout)";
-
-                updateGPSUI('error', msg);
-            };
-
-            watchId = navigator.geolocation.watchPosition(successCallback, errorCallback, options);
-        }
-
-        // Function to set current location as school location (Calibration)
-        function setCurrentLocationAsSchool() {
-            if (currentPosition) {
-                alert(`Lokasi Dikemaskini!\nLat: ${currentPosition.latitude}\nLng: ${currentPosition.longitude}\n\nSila kemaskini kod sumber jika ini adalah lokasi kekal.`);
-
-                window.tempSchoolLat = currentPosition.latitude;
-                window.tempSchoolLng = currentPosition.longitude;
-
-                // Force update
-                retryLocation();
-            } else {
-                alert("Tiada isyarat GPS untuk menetapkan lokasi.");
-            }
-        }
-
-        testModeToggle.addEventListener('change', (e) => {
-            isTestMode = e.target.checked;
-            retryLocation(); // Refresh UI immediately
-        });
-
         // Initialize GPS
         updateLocation();
 
         form.addEventListener('submit', (e) => {
             e.preventDefault();
 
-            let distance = -1;
-
-            if (!isTestMode) {
-                if (!currentPosition) {
-                    showStatus("Sila tunggu isyarat GPS sebelum menghantar.", "error");
-                    return;
-                }
-
-                const targetLat = window.tempSchoolLat || SCHOOL_LAT;
-                const targetLng = window.tempSchoolLng || SCHOOL_LNG;
-
-                distance = calculateDistance(
-                    currentPosition.latitude,
-                    currentPosition.longitude,
-                    targetLat,
-                    targetLng
+            targetLng
                 );
 
-                if (distance > ALLOWED_RADIUS_METERS) {
-                    showStatus(`Gagal: Anda berada ${distance.toFixed(1)}m dari sekolah.`, "error");
-                    return;
-                }
+        if (distance > ALLOWED_RADIUS_METERS) {
+            showStatus(`Gagal: Anda berada ${distance.toFixed(1)}m dari sekolah.`, "error");
+            return;
+        }
             } else {
-                distance = 0.00; // Test mode assumes 0 distance
-            }
+            distance = 0.00; // Test mode assumes 0 distance
+        }
 
-            const formData = new FormData(form);
-            const data = {
-                date: formData.get('date'),
-                masa: formData.get('masa'),
-                namaGuru: formData.get('namaGuru'),
-                kelas: formData.get('kelas'),
-                mataPelajaran: formData.get('mataPelajaran'),
-                catatan: formData.get('catatan') || '',
-                distance: isTestMode ? "DEMO_MODE" : distance.toFixed(2),
-                latitude: currentPosition ? currentPosition.latitude : 0,
-                longitude: currentPosition ? currentPosition.longitude : 0
-            };
+        const formData = new FormData(form);
+        const data = {
+            date: formData.get('date'),
+            masa: formData.get('masa'),
+            namaGuru: formData.get('namaGuru'),
+            kelas: formData.get('kelas'),
+            mataPelajaran: formData.get('mataPelajaran'),
+            catatan: formData.get('catatan') || '',
+            distance: isTestMode ? "DEMO_MODE" : distance.toFixed(2),
+            latitude: currentPosition ? currentPosition.latitude : 0,
+            longitude: currentPosition ? currentPosition.longitude : 0
+        };
 
-            const originalBtnText = submitBtn.innerHTML;
-            submitBtn.innerHTML = '<div class="spinner"></div><span class="ml-2">Menghantar...</span>';
-            submitBtn.disabled = true;
+        const originalBtnText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<div class="spinner"></div><span class="ml-2">Menghantar...</span>';
+        submitBtn.disabled = true;
 
-            fetch(GOOGLE_SCRIPT_URL, {
-                method: 'POST',
-                mode: 'no-cors', // Required for Google Apps Script
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(data)
+        fetch(GOOGLE_SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors', // Required for Google Apps Script
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        })
+            .then(response => {
+                // Google Apps Script returns an opaque response with no-cors, so we can't check response.ok
+                // We assume success if no network error.
+                showStatus("Kehadiran berjaya direkodkan!", "success");
+                form.reset(); // Clear form after successful submission
+                // Re-set date and masa if needed, or let user select again
+                dateInput.valueAsDate = new Date();
+                // masaInput.value = new Date().toTimeString().slice(0, 5); // Removed
             })
-                .then(response => {
-                    // Google Apps Script returns an opaque response with no-cors, so we can't check response.ok
-                    // We assume success if no network error.
-                    showStatus("Kehadiran berjaya direkodkan!", "success");
-                    form.reset(); // Clear form after successful submission
-                    // Re-set date and masa if needed, or let user select again
-                    dateInput.valueAsDate = new Date();
-                    // masaInput.value = new Date().toTimeString().slice(0, 5); // Removed
-                })
-                .catch(error => {
-                    console.error('Error!', error.message);
-                    showStatus("Ralat menghantar data. Sila cuba lagi.", "error");
-                })
-                .finally(() => {
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = '<span class="tracking-wide">SAHKAN KEBERADAAN</span><i class="fas fa-check text-sm ml-2"></i>';
-                    setTimeout(() => {
-                        submitBtn.innerHTML = originalBtnText;
-                    }, 3000);
-                });
+            .catch(error => {
+                console.error('Error!', error.message);
+                showStatus("Ralat menghantar data. Sila cuba lagi.", "error");
+            })
+            .finally(() => {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<span class="tracking-wide">SAHKAN KEBERADAAN</span><i class="fas fa-check text-sm ml-2"></i>';
+                setTimeout(() => {
+                    submitBtn.innerHTML = originalBtnText;
+                }, 3000);
+            });
         });
 
         function showStatus(message, type) {
